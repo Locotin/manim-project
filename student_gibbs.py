@@ -2,6 +2,8 @@ from manim import *
 
 
 class GibbsStudent(Scene):
+    SUBSCRIPT_MAP = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+
     def construct(self):
         # State spaces
         self.states = {
@@ -78,7 +80,11 @@ class GibbsStudent(Scene):
         self.play(ReplacementTransform(title, infer_title), run_time=0.55)
         title = infer_title
 
-        evidence_text = Text("Evidencia fija: S=s1, L=l0", font_size=20, color=GRAY_A)
+        evidence_text = Text(
+            f"Evidencia fija: S={self.fmt_state('s1')}, L={self.fmt_state('l0')}",
+            font_size=20,
+            color=GRAY_A,
+        )
         self.state_text = Text(self.state_to_string(state), font_size=22)
         evidence_panel = VGroup(evidence_text, self.state_text)
         evidence_panel.arrange(DOWN, aligned_edge=LEFT, buff=0.1)
@@ -135,7 +141,7 @@ class GibbsStudent(Scene):
             var_text = Text(node, font_size=28, weight=BOLD)
             var_text.move_to(pos + UP * 0.12)
 
-            value_text = Text(state[node], font_size=22)
+            value_text = Text(self.fmt_state(state[node]), font_size=22)
             value_text.move_to(pos + DOWN * 0.18)
 
             self.node_circles[node] = circle
@@ -210,7 +216,7 @@ class GibbsStudent(Scene):
                 f1 = self.p_d[d_val]
                 f2 = self.p_g[(i_val, d_val)][self.states["G"].index(g_val)]
                 u = f1 * f2
-                rows.append(f"{d_val}: {f1:.3f} * {f2:.3f} = {u:.5f}")
+                rows.append(f"{self.fmt_state(d_val)}: {f1:.3f} * {f2:.3f} = {u:.5f}")
                 unnorm.append(u)
 
         elif node == "I":
@@ -226,7 +232,7 @@ class GibbsStudent(Scene):
                 f2 = self.p_g[(i_val, d_val)][g_idx]
                 f3 = self.p_s[i_val][s_idx]
                 u = f1 * f2 * f3
-                rows.append(f"{i_val}: {f1:.3f} * {f2:.3f} * {f3:.3f} = {u:.5f}")
+                rows.append(f"{self.fmt_state(i_val)}: {f1:.3f} * {f2:.3f} * {f3:.3f} = {u:.5f}")
                 unnorm.append(u)
 
         elif node == "G":
@@ -240,7 +246,7 @@ class GibbsStudent(Scene):
                 f1 = self.p_g[(i_val, d_val)][self.states["G"].index(g_val)]
                 f2 = self.p_l[g_val][l_idx]
                 u = f1 * f2
-                rows.append(f"{g_val}: {f1:.3f} * {f2:.3f} = {u:.5f}")
+                rows.append(f"{self.fmt_state(g_val)}: {f1:.3f} * {f2:.3f} = {u:.5f}")
                 unnorm.append(u)
 
         elif node == "S":
@@ -249,7 +255,7 @@ class GibbsStudent(Scene):
             i_val = state["I"]
             for s_val in candidate_states:
                 u = self.p_s[i_val][self.states["S"].index(s_val)]
-                rows.append(f"{s_val}: {u:.3f}")
+                rows.append(f"{self.fmt_state(s_val)}: {u:.3f}")
                 unnorm.append(u)
 
         else:  # node == "L"
@@ -258,7 +264,7 @@ class GibbsStudent(Scene):
             g_val = state["G"]
             for l_val in candidate_states:
                 u = self.p_l[g_val][self.states["L"].index(l_val)]
-                rows.append(f"{l_val}: {u:.3f}")
+                rows.append(f"{self.fmt_state(l_val)}: {u:.3f}")
                 unnorm.append(u)
 
         z = sum(unnorm)
@@ -269,7 +275,7 @@ class GibbsStudent(Scene):
         chosen = candidate_states[max_idx]
 
         dist_str = ", ".join(
-            [f"{candidate_states[k]}={norm[k]:.3f}" for k in range(len(candidate_states))]
+            [f"{self.fmt_state(candidate_states[k])}={norm[k]:.3f}" for k in range(len(candidate_states))]
         )
 
         return {
@@ -284,9 +290,9 @@ class GibbsStudent(Scene):
 
     def build_calc_steps(self, step, cond, old_state):
         update_msg = (
-            f"Actualizacion: {cond['node']} {old_state} -> {cond['chosen']}"
+            f"Actualizacion: {cond['node']} {self.fmt_state(old_state)} -> {self.fmt_state(cond['chosen'])}"
             if cond["chosen"] != old_state
-            else f"Actualizacion: {cond['node']} sin cambio ({cond['chosen']})"
+            else f"Actualizacion: {cond['node']} sin cambio ({self.fmt_state(cond['chosen'])})"
         )
         steps = [
             f"Paso {step}: {cond['query']}",
@@ -321,7 +327,7 @@ class GibbsStudent(Scene):
     def update_node_value(self, node, new_state, old_state):
         if new_state == old_state:
             return
-        new_text = Text(new_state, font_size=22)
+        new_text = Text(self.fmt_state(new_state), font_size=22)
         new_text.move_to(self.node_value_texts[node].get_center())
         self.play(ReplacementTransform(self.node_value_texts[node], new_text), run_time=0.2)
         self.node_value_texts[node] = new_text
@@ -329,7 +335,11 @@ class GibbsStudent(Scene):
     def show_node_update_feedback(self, node, old_state, new_state):
         changed = new_state != old_state
         msg = (
-            Text(f"{node}: {old_state} -> {new_state}", font_size=18, color=GREEN_C)
+            Text(
+                f"{node}: {self.fmt_state(old_state)} -> {self.fmt_state(new_state)}",
+                font_size=18,
+                color=GREEN_C,
+            )
             if changed
             else Text(f"{node}: sin cambio", font_size=18, color=GRAY_A)
         )
@@ -345,19 +355,29 @@ class GibbsStudent(Scene):
         title = Text("Tablas de probabilidad", font_size=22)
 
         cards_data = [
-            ("P(D)", ["d0: 0.60", "d1: 0.40"]),
-            ("P(I)", ["i0: 0.70", "i1: 0.30"]),
+            ("P(D)", [f"{self.fmt_state('d0')}: 0.60", f"{self.fmt_state('d1')}: 0.40"]),
+            ("P(I)", [f"{self.fmt_state('i0')}: 0.70", f"{self.fmt_state('i1')}: 0.30"]),
             (
                 "P(G|I,D)",
                 [
-                    "i0,d0: [0.30, 0.40, 0.30]",
-                    "i0,d1: [0.05, 0.25, 0.70]",
-                    "i1,d0: [0.90, 0.08, 0.02]",
-                    "i1,d1: [0.50, 0.30, 0.20]",
+                    f"{self.fmt_state('i0')},{self.fmt_state('d0')}: [0.30, 0.40, 0.30]",
+                    f"{self.fmt_state('i0')},{self.fmt_state('d1')}: [0.05, 0.25, 0.70]",
+                    f"{self.fmt_state('i1')},{self.fmt_state('d0')}: [0.90, 0.08, 0.02]",
+                    f"{self.fmt_state('i1')},{self.fmt_state('d1')}: [0.50, 0.30, 0.20]",
                 ],
             ),
-            ("P(S|I)", ["i0: [0.95, 0.05]", "i1: [0.20, 0.80]"]),
-            ("P(L|G)", ["g1: [0.10, 0.90]", "g2: [0.40, 0.60]", "g3: [0.99, 0.01]"]),
+            (
+                "P(S|I)",
+                [f"{self.fmt_state('i0')}: [0.95, 0.05]", f"{self.fmt_state('i1')}: [0.20, 0.80]"],
+            ),
+            (
+                "P(L|G)",
+                [
+                    f"{self.fmt_state('g1')}: [0.10, 0.90]",
+                    f"{self.fmt_state('g2')}: [0.40, 0.60]",
+                    f"{self.fmt_state('g3')}: [0.99, 0.01]",
+                ],
+            ),
         ]
         cards_group = VGroup()
         for idx, (name, rows) in enumerate(cards_data):
@@ -429,6 +449,90 @@ class GibbsStudent(Scene):
 
     def state_to_string(self, state):
         return (
-            f"D={state['D']}, I={state['I']}, G={state['G']}, "
-            f"S={state['S']}, L={state['L']}"
+            f"D={self.fmt_state(state['D'])}, I={self.fmt_state(state['I'])}, "
+            f"G={self.fmt_state(state['G'])}, S={self.fmt_state(state['S'])}, "
+            f"L={self.fmt_state(state['L'])}"
         )
+
+    def fmt_state(self, token):
+        if len(token) >= 2 and token[0].isalpha() and token[1:].isdigit():
+            return token[0] + token[1:].translate(self.SUBSCRIPT_MAP)
+        return token
+
+
+class MarkovBlanketStudent(GibbsStudent):
+    def construct(self):
+        self.markov_blankets = {
+            "D": ["I", "G"],
+            "I": ["D", "G", "S"],
+            "G": ["D", "I", "L"],
+            "S": ["I"],
+            "L": ["G"],
+        }
+        self.node_colors = {
+            "D": TEAL_C,
+            "I": ORANGE,
+            "G": GREEN_C,
+            "S": PURPLE_C,
+            "L": RED_C,
+        }
+        self.node_circles = {}
+        self.node_value_texts = {}
+        self.cpt_cards = {}
+        self.cpt_links = VGroup()
+        self.evidence_nodes = {"S", "L"}
+
+        state = {"D": "d0", "I": "i1", "G": "g2", "S": "s1", "L": "l0"}
+        network_group = self.draw_network(state)
+        self.play(FadeIn(network_group), run_time=0.7)
+
+        title = Text("Manta de Markov en Student Network", font_size=32)
+        title.to_edge(UP)
+        self.play(Write(title), run_time=0.6)
+
+        legend = VGroup(
+            Text("Amarillo: nodo activo", font_size=26, color=YELLOW),
+            Text("Azul: nodos en su manta de Markov", font_size=26, color=BLUE),
+        ).arrange(DOWN, aligned_edge=LEFT, buff=0.07)
+        legend.to_corner(UR, buff=0.4).shift(DOWN * 0.8)
+        self.play(FadeIn(legend), run_time=0.5)
+
+        mb_text = Text("MB(X) = {...}", font_size=30, color=YELLOW)
+        mb_text.to_edge(DOWN, buff=0.35)
+        self.play(FadeIn(mb_text), run_time=0.4)
+        blanket_outline = VGroup()
+
+        for node in ["D", "I", "G"]:
+            self.highlight_markov_blanket(node)
+            new_outline = self.create_blanket_outline(self.markov_blankets[node])
+            if len(blanket_outline) == 0:
+                self.play(Create(new_outline), run_time=0.35)
+            else:
+                self.play(ReplacementTransform(blanket_outline, new_outline), run_time=0.35)
+            blanket_outline = new_outline
+
+            mb_set = ", ".join(self.markov_blankets[node])
+            new_text = Text(f"MB({node}) = {{{mb_set}}}", font_size=30, color=YELLOW)
+            new_text.move_to(mb_text)
+            self.play(ReplacementTransform(mb_text, new_text), run_time=0.4)
+            mb_text = new_text
+            self.wait(0.7)
+            self.reset_highlights()
+
+        self.play(FadeOut(blanket_outline), run_time=0.25)
+        self.wait(0.9)
+
+    def create_blanket_outline(self, blanket_nodes):
+        outlines = VGroup()
+        for node in blanket_nodes:
+            ring = Circle(radius=0.62)
+            ring.move_to(self.node_circles[node].get_center())
+            dashed_ring = DashedVMobject(
+                ring,
+                num_dashes=24,
+                dashed_ratio=0.6,
+                color=BLUE_D,
+            )
+            dashed_ring.set_stroke(width=3.2)
+            outlines.add(dashed_ring)
+        return outlines
