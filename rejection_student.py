@@ -16,17 +16,17 @@ class RejectionStudent(Scene):
         self.rng = random.Random(11)
         self.setup_model()
 
-        title = Text("Rejection Sampling en Student Network", font_size=32)
+        title = Text("Muestreo por rechazo", font_size=32)
         title.to_edge(UP)
         self.play(Write(title), run_time=0.8)
 
         # Evidence and query
-        evidence = {"S": "s1", "L": "l0"}
+        evidence = {"S": "s1", "L": "c0"}
         query_target = ("I", "i1")
 
         subtitle = Text(
             f"Evidencia: {self.node_label('S')}={self.fmt_state('s1')}, "
-            f"{self.node_label('L')}={self.fmt_state('l0')}  |  "
+            f"{self.node_label('L')}={self.fmt_state('c0')}  |  "
             f"Consulta: P({self.node_label('I')}={self.fmt_state('i1')} | evidencia)",
             font_size=22,
             color=GRAY_A,
@@ -34,7 +34,7 @@ class RejectionStudent(Scene):
         subtitle.next_to(title, DOWN, buff=0.15)
         self.play(FadeIn(subtitle, shift=DOWN * 0.1), run_time=0.5)
 
-        state = {"D": "d0", "I": "i0", "G": "g1", "S": "s1", "L": "l0"}
+        state = {"D": "d0", "I": "i0", "G": "n1", "S": "s1", "L": "c0"}
         network = self.draw_network(state)
         self.play(FadeIn(network), run_time=0.8)
 
@@ -43,9 +43,12 @@ class RejectionStudent(Scene):
         counters = self.create_counter_panel()
         self.play(FadeIn(counters), run_time=0.5)
 
-        info_line = Text("Generando muestras completas desde la prior...", font_size=24)
-        info_line.to_edge(DOWN, buff=0.35)
-        self.play(FadeIn(info_line), run_time=0.4)
+        sample_line = Text("Muestra 0: --", font_size=22)
+        decision_line = Text("Estado: --", font_size=22, color=GRAY_A)
+        display_group = VGroup(sample_line, decision_line)
+        display_group.arrange(DOWN, aligned_edge=LEFT, buff=0.08)
+        display_group.to_edge(DOWN, buff=0.35)
+        self.play(FadeIn(display_group), run_time=0.4)
 
         accepted = 0
         rejected = 0
@@ -64,31 +67,27 @@ class RejectionStudent(Scene):
                     hits += 1
 
                 est = hits / accepted if accepted > 0 else 0.0
-                msg = (
-                    f"Muestra {k}: ACEPTADA  "
-                    f"({self.node_label('S')}={self.fmt_state(sample['S'])}, "
-                    f"{self.node_label('L')}={self.fmt_state(sample['L'])})"
-                )
-                if is_hit:
-                    msg += f"  y {self.node_label('I')}={self.fmt_state('i1')}"
-                else:
-                    msg += f"  y {self.node_label('I')}={self.fmt_state(sample['I'])}"
+                status_text = "ACEPTADA"
                 status_color = GREEN_C
             else:
                 rejected += 1
                 est = hits / accepted if accepted > 0 else 0.0
-                msg = (
-                    f"Muestra {k}: RECHAZADA  "
-                    f"({self.node_label('S')}={self.fmt_state(sample['S'])}, "
-                    f"{self.node_label('L')}={self.fmt_state(sample['L'])})"
-                )
+                status_text = "RECHAZADA"
                 status_color = RED_C
 
             self.highlight_accept_reject(evidence_ok)
-            new_info = Text(msg, font_size=24, color=status_color)
-            new_info.move_to(info_line)
-            self.play(ReplacementTransform(info_line, new_info), run_time=0.35)
-            info_line = new_info
+            new_sample = Text(
+                f"Muestra {k}: {self.sample_state_string(sample)}",
+                font_size=22,
+            )
+            new_sample.move_to(sample_line)
+            new_decision = Text(f"Estado: {status_text}", font_size=22, color=status_color)
+            new_decision.move_to(decision_line)
+            # Re-display the state each sample (fade out/in) to emphasize change.
+            self.play(FadeOut(sample_line), FadeOut(decision_line), run_time=0.15)
+            self.play(FadeIn(new_sample), FadeIn(new_decision), run_time=0.2)
+            sample_line = new_sample
+            decision_line = new_decision
 
             self.update_counters(accepted, rejected, hits, est)
             self.wait(0.35)
@@ -96,22 +95,22 @@ class RejectionStudent(Scene):
         final_text = Text(
             f"Estimacion final: P({self.node_label('I')}={self.fmt_state('i1')} | "
             f"{self.node_label('S')}={self.fmt_state('s1')}, "
-            f"{self.node_label('L')}={self.fmt_state('l0')}) "
+            f"{self.node_label('L')}={self.fmt_state('c0')}) "
             f"≈ {hits}/{max(accepted,1)} = {hits / max(accepted,1):.3f}",
             font_size=26,
             color=YELLOW,
         )
         final_text.to_edge(DOWN, buff=0.25)
-        self.play(ReplacementTransform(info_line, final_text), run_time=0.5)
+        self.play(ReplacementTransform(display_group, final_text), run_time=0.5)
         self.wait(1.2)
 
     def setup_model(self):
         self.states = {
             "D": ["d0", "d1"],
             "I": ["i0", "i1"],
-            "G": ["g1", "g2", "g3"],
+            "G": ["n1", "n2", "n3"],
             "S": ["s0", "s1"],
-            "L": ["l0", "l1"],
+            "L": ["c0", "c1"],
         }
         self.p_d = {"d0": 0.6, "d1": 0.4}
         self.p_i = {"i0": 0.7, "i1": 0.3}
@@ -122,7 +121,7 @@ class RejectionStudent(Scene):
             ("i1", "d1"): [0.5, 0.3, 0.2],
         }
         self.p_s = {"i0": [0.95, 0.05], "i1": [0.2, 0.8]}
-        self.p_l = {"g1": [0.1, 0.9], "g2": [0.4, 0.6], "g3": [0.99, 0.01]}
+        self.p_l = {"n1": [0.1, 0.9], "n2": [0.4, 0.6], "n3": [0.99, 0.01]}
 
         self.node_colors = {
             "D": TEAL_C,
@@ -251,9 +250,9 @@ class RejectionStudent(Scene):
     def ancestral_sample(self):
         d = self.sample_cat(["d0", "d1"], [self.p_d["d0"], self.p_d["d1"]])
         i = self.sample_cat(["i0", "i1"], [self.p_i["i0"], self.p_i["i1"]])
-        g = self.sample_cat(["g1", "g2", "g3"], self.p_g[(i, d)])
+        g = self.sample_cat(["n1", "n2", "n3"], self.p_g[(i, d)])
         s = self.sample_cat(["s0", "s1"], self.p_s[i])
-        l = self.sample_cat(["l0", "l1"], self.p_l[g])
+        l = self.sample_cat(["c0", "c1"], self.p_l[g])
         return {"D": d, "I": i, "G": g, "S": s, "L": l}
 
     def fmt_state(self, token):
@@ -264,19 +263,28 @@ class RejectionStudent(Scene):
     def node_label(self, node):
         return self.NODE_LABELS.get(node, node)
 
+    def sample_state_string(self, sample):
+        return (
+            f"{self.node_label('D')}={self.fmt_state(sample['D'])}, "
+            f"{self.node_label('I')}={self.fmt_state(sample['I'])}, "
+            f"{self.node_label('G')}={self.fmt_state(sample['G'])}, "
+            f"{self.node_label('S')}={self.fmt_state(sample['S'])}, "
+            f"{self.node_label('L')}={self.fmt_state(sample['L'])}"
+        )
+
 
 class LikelihoodWeightingStudent(RejectionStudent):
     def construct(self):
         self.rng = random.Random(17)
         self.setup_model()
 
-        title = Text("Likelihood Weighting en Student Network", font_size=32)
+        title = Text("Ponderado en Verosimilitud", font_size=32)
         title.to_edge(UP)
         self.play(Write(title), run_time=0.8)
 
         subtitle = Text(
             f"Evidencia fija: {self.node_label('S')}={self.fmt_state('s1')}, "
-            f"{self.node_label('L')}={self.fmt_state('l0')}  |  "
+            f"{self.node_label('L')}={self.fmt_state('c0')}  |  "
             f"Consulta: P({self.node_label('I')}={self.fmt_state('i1')} | evidencia)",
             font_size=22,
             color=GRAY_A,
@@ -284,7 +292,7 @@ class LikelihoodWeightingStudent(RejectionStudent):
         subtitle.next_to(title, DOWN, buff=0.15)
         self.play(FadeIn(subtitle, shift=DOWN * 0.1), run_time=0.5)
 
-        state = {"D": "d0", "I": "i0", "G": "g1", "S": "s1", "L": "l0"}
+        state = {"D": "d0", "I": "i0", "G": "n1", "S": "s1", "L": "c0"}
         network = self.draw_network(state)
         self.play(FadeIn(network), run_time=0.8)
         self.highlight_evidence_nodes()
@@ -292,9 +300,9 @@ class LikelihoodWeightingStudent(RejectionStudent):
         counters = self.create_weight_panel()
         self.play(FadeIn(counters), run_time=0.5)
 
-        info_line = Text("Generando muestra y acumulando peso de evidencia...", font_size=24)
-        info_line.to_edge(DOWN, buff=0.35)
-        self.play(FadeIn(info_line), run_time=0.4)
+        calc_line = Text("Calculando pesos de evidencia...", font_size=22, color=BLUE_C)
+        calc_line.to_edge(DOWN, buff=0.28)
+        self.play(FadeIn(calc_line), run_time=0.4)
 
         n_samples = 18
         weight_total = 0.0
@@ -305,22 +313,27 @@ class LikelihoodWeightingStudent(RejectionStudent):
             self.animate_state_update(sample)
             self.highlight_weighted_sample()
 
+            i_val = sample["I"]
+            g_val = sample["G"]
+            s_idx = self.states["S"].index("s1")
+            l_idx = self.states["L"].index("c0")
+            w_s = self.p_s[i_val][s_idx]
+            w_l = self.p_l[g_val][l_idx]
+
             weight_total += w
             weight_hits += hit_w
             est = weight_hits / weight_total if weight_total > 0 else 0.0
 
-            msg = (
-                f"Muestra {k}: w=P({self.node_label('S')}={self.fmt_state('s1')}|"
-                f"{self.node_label('I')}={self.fmt_state(sample['I'])})"
-                f"·P({self.node_label('L')}={self.fmt_state('l0')}|"
-                f"{self.node_label('G')}={self.fmt_state(sample['G'])})={w:.4f}"
-            )
-            new_info = Text(msg, font_size=22, color=BLUE_C)
-            new_info.move_to(info_line)
-            if new_info.width > 12.5:
-                new_info.scale_to_fit_width(12.5)
-            self.play(ReplacementTransform(info_line, new_info), run_time=0.35)
-            info_line = new_info
+            steps = [
+                f"Muestra {k}: {self.node_label('I')}={self.fmt_state(i_val)}, "
+                f"{self.node_label('G')}={self.fmt_state(g_val)}",
+                f"P({self.node_label('S')}={self.fmt_state('s1')}|"
+                f"{self.node_label('I')}={self.fmt_state(i_val)}) = {w_s:.3f}",
+                f"P({self.node_label('L')}={self.fmt_state('c0')}|"
+                f"{self.node_label('G')}={self.fmt_state(g_val)}) = {w_l:.3f}",
+                f"w = {w_s:.3f} * {w_l:.3f} = {w:.4f}",
+            ]
+            calc_line = self.show_lw_calc_steps(calc_line, steps)
 
             self.update_weight_panel(k, weight_total, weight_hits, est, sample["I"] == "i1")
             self.wait(0.35)
@@ -331,8 +344,32 @@ class LikelihoodWeightingStudent(RejectionStudent):
             color=YELLOW,
         )
         final_text.to_edge(DOWN, buff=0.25)
-        self.play(ReplacementTransform(info_line, final_text), run_time=0.5)
+        self.play(ReplacementTransform(calc_line, final_text), run_time=0.5)
         self.wait(1.2)
+
+    def make_lw_calc_block(self, steps):
+        lines = [Text(line, font_size=22, color=WHITE) for line in steps]
+        block = VGroup(*lines)
+        block.arrange(DOWN, aligned_edge=LEFT, buff=0.08)
+        block.to_edge(DOWN, buff=0.28)
+        if block.width > 12.5:
+            block.scale_to_fit_width(12.5)
+        return block
+
+    def show_lw_calc_steps(self, previous_line, steps):
+        block = self.make_lw_calc_block(steps)
+        if previous_line is not None:
+            self.play(FadeOut(previous_line), run_time=0.2)
+
+        self.play(FadeIn(block[0]), run_time=0.3)
+        self.wait(0.2)
+        self.play(FadeIn(block[1]), run_time=0.3)
+        self.wait(0.2)
+        self.play(FadeIn(block[2]), run_time=0.3)
+        self.wait(0.2)
+        self.play(FadeIn(block[3]), run_time=0.3)
+        self.wait(0.6)
+        return block
 
     def create_weight_panel(self):
         self.count_text = Text("Muestras: 0", font_size=22)
@@ -352,7 +389,7 @@ class LikelihoodWeightingStudent(RejectionStudent):
             self.last_hit_text,
         )
         panel.arrange(DOWN, aligned_edge=LEFT, buff=0.08)
-        panel.to_corner(UR, buff=0.45).shift(DOWN * 0.8)
+        panel.to_corner(UR, buff=0.45).shift(DOWN * 1.6)
         return panel
 
     def update_weight_panel(self, n, weight_total, weight_hits, est, is_hit):
@@ -397,12 +434,12 @@ class LikelihoodWeightingStudent(RejectionStudent):
         # Sample non-evidence variables and clamp evidence values.
         d = self.sample_cat(["d0", "d1"], [self.p_d["d0"], self.p_d["d1"]])
         i = self.sample_cat(["i0", "i1"], [self.p_i["i0"], self.p_i["i1"]])
-        g = self.sample_cat(["g1", "g2", "g3"], self.p_g[(i, d)])
+        g = self.sample_cat(["n1", "n2", "n3"], self.p_g[(i, d)])
         s = "s1"
-        l = "l0"
+        l = "c0"
 
         w_s = self.p_s[i][1]  # P(S=s1 | I=i)
-        w_l = self.p_l[g][0]  # P(L=l0 | G=g)
+        w_l = self.p_l[g][0]  # P(L=c0 | G=g)
         w = w_s * w_l
         hit_w = w if i == "i1" else 0.0
         return {"D": d, "I": i, "G": g, "S": s, "L": l}, w, hit_w

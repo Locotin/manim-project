@@ -16,9 +16,9 @@ class GibbsStudent(Scene):
         self.states = {
             "D": ["d0", "d1"],
             "I": ["i0", "i1"],
-            "G": ["g1", "g2", "g3"],
+            "G": ["n1", "n2", "n3"],
             "S": ["s0", "s1"],
-            "L": ["l0", "l1"],
+            "L": ["c0", "c1"],
         }
 
         # Priors and CPTs
@@ -35,9 +35,9 @@ class GibbsStudent(Scene):
             "i1": [0.2, 0.8],
         }
         self.p_l = {
-            "g1": [0.1, 0.9],
-            "g2": [0.4, 0.6],
-            "g3": [0.99, 0.01],
+            "n1": [0.1, 0.9],
+            "n2": [0.4, 0.6],
+            "n3": [0.99, 0.01],
         }
 
         self.markov_blankets = {
@@ -66,15 +66,15 @@ class GibbsStudent(Scene):
         state = {
             "D": "d0",
             "I": "i1",
-            "G": "g2",
+            "G": "n2",
             "S": "s1",
-            "L": "l0",
+            "L": "c0",
         }
 
         network_group = self.draw_network(state)
         self.play(FadeIn(network_group), run_time=0.8)
 
-        title = Text("Student Network: estructura y CPTs", font_size=30)
+        title = Text("Estructura y CPTs", font_size=30)
         title.to_edge(UP)
         self.play(Write(title), run_time=0.6)
 
@@ -82,21 +82,20 @@ class GibbsStudent(Scene):
         self.play(FadeIn(cpt_panel), run_time=0.7)
         self.wait(0.8)
 
-        infer_title = Text("Gibbs Sampling con evidencia", font_size=30)
+        infer_title = Text("Muestreo de Gibbs con evidencia", font_size=30)
         infer_title.move_to(title)
         self.play(ReplacementTransform(title, infer_title), run_time=0.55)
         title = infer_title
 
         evidence_text = Text(
             f"Evidencia fija: {self.node_label('S')}={self.fmt_state('s1')}, "
-            f"{self.node_label('L')}={self.fmt_state('l0')}",
-            font_size=20,
+            f"{self.node_label('L')}={self.fmt_state('c0')}",
+            font_size=22,
             color=GRAY_A,
         )
-        self.state_text = Text(self.state_to_string(state), font_size=22)
-        evidence_panel = VGroup(evidence_text, self.state_text)
+        evidence_panel = VGroup(evidence_text)
         evidence_panel.arrange(DOWN, aligned_edge=LEFT, buff=0.1)
-        evidence_panel.to_corner(DL, buff=0.6)
+        evidence_panel.to_corner(DL, buff=0.6).shift(UP * 0.35)
         self.play(FadeIn(evidence_panel, shift=UP * 0.08), run_time=0.45)
 
         calc_line = None
@@ -118,10 +117,7 @@ class GibbsStudent(Scene):
             self.show_node_update_feedback(node, old_state, chosen_state)
             state[node] = chosen_state
 
-            new_state_text = Text(self.state_to_string(state), font_size=22)
-            new_state_text.move_to(self.state_text)
-            self.play(ReplacementTransform(self.state_text, new_state_text), run_time=0.35)
-            self.state_text = new_state_text
+            # State text was removed; no replacement needed.
 
             self.wait(0.45)
             self.reset_highlights()
@@ -319,7 +315,7 @@ class GibbsStudent(Scene):
 
     def make_calc_text(self, text):
         calc_text = Text(text, font_size=26)
-        calc_text.to_edge(DOWN, buff=0.25).shift(RIGHT * 1.2)
+        calc_text.to_edge(DOWN, buff=0.25).shift(LEFT * 2.0)
         max_width = 7.2
         if calc_text.width > max_width:
             calc_text.scale_to_fit_width(max_width)
@@ -386,9 +382,9 @@ class GibbsStudent(Scene):
             (
                 self.cond_label("L", ["G"]),
                 [
-                    f"{self.fmt_state('g1')}: [0.10, 0.90]",
-                    f"{self.fmt_state('g2')}: [0.40, 0.60]",
-                    f"{self.fmt_state('g3')}: [0.99, 0.01]",
+                    f"{self.fmt_state('n1')}: [0.10, 0.90]",
+                    f"{self.fmt_state('n2')}: [0.40, 0.60]",
+                    f"{self.fmt_state('n3')}: [0.99, 0.01]",
                 ],
             ),
         ]
@@ -507,11 +503,11 @@ class MarkovBlanketStudent(GibbsStudent):
         self.cpt_links = VGroup()
         self.evidence_nodes = {"S", "L"}
 
-        state = {"D": "d0", "I": "i1", "G": "g2", "S": "s1", "L": "l0"}
+        state = {"D": "d0", "I": "i1", "G": "n2", "S": "s1", "L": "c0"}
         network_group = self.draw_network(state)
         self.play(FadeIn(network_group), run_time=0.7)
 
-        title = Text("Manta de Markov en Student Network", font_size=32)
+        title = Text("Manta de Markov", font_size=32)
         title.to_edge(UP)
         self.play(Write(title), run_time=0.6)
 

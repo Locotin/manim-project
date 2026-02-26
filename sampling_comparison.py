@@ -17,14 +17,14 @@ class ComparacionMuestreo(Scene):
         query_text = Text(
             f"Consulta: P({self.node_label('I')}={self.fmt_state('i1')} | "
             f"{self.node_label('S')}={self.fmt_state('s1')}, "
-            f"{self.node_label('L')}={self.fmt_state('l0')})",
+            f"{self.node_label('L')}={self.fmt_state('c0')})",
             font_size=26,
         )
         query_text.to_edge(UP)
         self.play(Write(query_text), run_time=0.9)
 
         expl = Text(
-            "Rejection rechaza muestras sin evidencia; Likelihood Weighting usa pesos.",
+            "Muestreo por rechazo rechaza muestras sin evidencia; Ponderado en Verosimilitud usa pesos.",
             font_size=22,
             color=GRAY_A,
         )
@@ -48,11 +48,11 @@ class ComparacionMuestreo(Scene):
 
         rej_legend = VGroup(
             Dot(color=RED_C, radius=0.06),
-            Text("Rejection Sampling", font_size=20, color=RED_C),
+            Text("Muestreo por rechazo", font_size=20, color=RED_C),
         ).arrange(RIGHT, buff=0.12)
         lw_legend = VGroup(
             Dot(color=BLUE_C, radius=0.06),
-            Text("Likelihood Weighting", font_size=20, color=BLUE_C),
+            Text("Ponderado en Verosimilitud", font_size=20, color=BLUE_C),
         ).arrange(RIGHT, buff=0.12)
         legend = VGroup(rej_legend, lw_legend).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
         legend.to_corner(UR, buff=0.5).shift(DOWN * 1.1)
@@ -64,7 +64,7 @@ class ComparacionMuestreo(Scene):
         self.play(Create(truth_line), FadeIn(truth_label), run_time=0.5)
 
         # Right metrics panel
-        rej_title = Text("Rejection", font_size=22, color=RED_C)
+        rej_title = Text("Muestreo por rechazo", font_size=22, color=RED_C)
         self.rej_count_text = Text("aceptadas: 0", font_size=20)
         self.rej_drop_text = Text("rechazadas: 0", font_size=20)
         self.rej_rate_text = Text("tasa rechazo: 0.0%", font_size=20)
@@ -72,7 +72,7 @@ class ComparacionMuestreo(Scene):
         rej_panel.arrange(DOWN, aligned_edge=LEFT, buff=0.06)
         rej_panel.next_to(legend, DOWN, aligned_edge=LEFT, buff=0.3)
 
-        lw_title = Text("Likelihood Weighting", font_size=22, color=BLUE_C)
+        lw_title = Text("Ponderado en Verosimilitud", font_size=22, color=BLUE_C)
         self.lw_weight_text = Text("peso acumulado: 0.000", font_size=20)
         self.lw_eff_text = Text("muestras usadas: 0", font_size=20)
         lw_panel = VGroup(lw_title, self.lw_weight_text, self.lw_eff_text)
@@ -135,8 +135,8 @@ class ComparacionMuestreo(Scene):
             self.wait(1 / config.frame_rate)
 
         final_msg = Text(
-            f"Conclusión: Rejection desperdicia muestras cuando la evidencia es rara; "
-            f"Likelihood Weighting converge más estable.",
+            f"Conclusión: Muestreo por rechazo desperdicia muestras cuando la evidencia es rara; "
+            f"Ponderado en Verosimilitud converge más estable.",
             font_size=20,
         )
         final_msg.scale_to_fit_width(6.2)
@@ -154,7 +154,7 @@ class ComparacionMuestreo(Scene):
             ("i1", "d1"): [0.5, 0.3, 0.2],
         }
         self.p_s = {"i0": [0.95, 0.05], "i1": [0.2, 0.8]}
-        self.p_l = {"g1": [0.1, 0.9], "g2": [0.4, 0.6], "g3": [0.99, 0.01]}
+        self.p_l = {"n1": [0.1, 0.9], "n2": [0.4, 0.6], "n3": [0.99, 0.01]}
 
     def sample_categorical(self, labels, probs):
         u = self.rng.random()
@@ -168,26 +168,26 @@ class ComparacionMuestreo(Scene):
     def ancestral_sample(self):
         d = self.sample_categorical(["d0", "d1"], [self.p_d["d0"], self.p_d["d1"]])
         i = self.sample_categorical(["i0", "i1"], [self.p_i["i0"], self.p_i["i1"]])
-        g = self.sample_categorical(["g1", "g2", "g3"], self.p_g[(i, d)])
+        g = self.sample_categorical(["n1", "n2", "n3"], self.p_g[(i, d)])
         s = self.sample_categorical(["s0", "s1"], self.p_s[i])
-        l = self.sample_categorical(["l0", "l1"], self.p_l[g])
+        l = self.sample_categorical(["c0", "c1"], self.p_l[g])
         return {"D": d, "I": i, "G": g, "S": s, "L": l}
 
     def rejection_sample_once(self):
         sample = self.ancestral_sample()
-        evidence_ok = sample["S"] == "s1" and sample["L"] == "l0"
+        evidence_ok = sample["S"] == "s1" and sample["L"] == "c0"
         if not evidence_ok:
             return False, False
         return True, sample["I"] == "i1"
 
     def lw_sample_once(self):
-        # Evidence: S=s1, L=l0 are clamped and contribute to sample weight.
+        # Evidence: S=s1, L=c0 are clamped and contribute to sample weight.
         d = self.sample_categorical(["d0", "d1"], [self.p_d["d0"], self.p_d["d1"]])
         i = self.sample_categorical(["i0", "i1"], [self.p_i["i0"], self.p_i["i1"]])
-        g = self.sample_categorical(["g1", "g2", "g3"], self.p_g[(i, d)])
+        g = self.sample_categorical(["n1", "n2", "n3"], self.p_g[(i, d)])
 
         w_s = self.p_s[i][1]  # P(S=s1 | I=i)
-        w_l = self.p_l[g][0]  # P(L=l0 | G=g)
+        w_l = self.p_l[g][0]  # P(L=c0 | G=g)
         w = w_s * w_l
 
         return w, w if i == "i1" else 0.0

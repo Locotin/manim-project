@@ -16,12 +16,12 @@ class MetropolisHastingsStudent(Scene):
         self.rng = random.Random(42)
         self.setup_model()
 
-        state = {"D": "d0", "I": "i1", "G": "g2", "S": "s1", "L": "l0"}
+        state = {"D": "d0", "I": "i1", "G": "n2", "S": "s1", "L": "c0"}
 
         network_group = self.draw_network(state)
         self.play(FadeIn(network_group), run_time=0.8)
 
-        title = Text("Metropolis-Hastings en Student Network", font_size=30)
+        title = Text("Metropolis-Hastings", font_size=30)
         title.to_edge(UP)
         self.play(Write(title), run_time=0.6)
 
@@ -31,18 +31,17 @@ class MetropolisHastingsStudent(Scene):
 
         evidence_text = Text(
             f"Evidencia fija: {self.node_label('S')}={self.fmt_state('s1')}, "
-            f"{self.node_label('L')}={self.fmt_state('l0')}",
+            f"{self.node_label('L')}={self.fmt_state('c0')}",
             font_size=20,
             color=GRAY_A,
         )
-        self.state_text = Text(self.state_to_string(state), font_size=22)
-        evidence_panel = VGroup(evidence_text, self.state_text)
+        evidence_panel = VGroup(evidence_text)
         evidence_panel.arrange(DOWN, aligned_edge=LEFT, buff=0.1)
-        evidence_panel.to_corner(DL, buff=0.6)
+        evidence_panel.to_corner(DL, buff=0.6).shift(UP * 0.55)
         self.play(FadeIn(evidence_panel, shift=UP * 0.08), run_time=0.45)
 
         self.accept_text = Text("Aceptadas: 0/0 (0.000)", font_size=21, color=YELLOW)
-        self.accept_text.to_corner(UL, buff=0.6).shift(DOWN * 0.75)
+        self.accept_text.next_to(evidence_panel, DOWN, aligned_edge=LEFT, buff=0.15)
         self.play(FadeIn(self.accept_text), run_time=0.35)
 
         calc_line = None
@@ -71,19 +70,14 @@ class MetropolisHastingsStudent(Scene):
                 accepted_count += 1
                 state[node] = new_val
                 self.update_node_value(node, new_val)
-                stamp = Text("ACCEPT", font_size=56, color=GREEN_C, weight=BOLD)
+                stamp = Text("MUNDO ACEPTADO", font_size=56, color=GREEN_C, weight=BOLD)
             else:
-                stamp = Text("REJECT", font_size=56, color=RED_C, weight=BOLD)
+                stamp = Text("MUNDO RECHAZADO", font_size=56, color=RED_C, weight=BOLD)
 
             stamp.move_to(ORIGIN + UP * 0.45)
             self.play(FadeIn(stamp, scale=0.7), run_time=0.2)
             self.wait(0.2)
             self.play(FadeOut(stamp, scale=1.1), run_time=0.2)
-
-            new_state_text = Text(self.state_to_string(state), font_size=22)
-            new_state_text.move_to(self.state_text)
-            self.play(ReplacementTransform(self.state_text, new_state_text), run_time=0.25)
-            self.state_text = new_state_text
 
             rate = accepted_count / step
             new_accept_text = Text(
@@ -104,9 +98,9 @@ class MetropolisHastingsStudent(Scene):
         self.states = {
             "D": ["d0", "d1"],
             "I": ["i0", "i1"],
-            "G": ["g1", "g2", "g3"],
+            "G": ["n1", "n2", "n3"],
             "S": ["s0", "s1"],
-            "L": ["l0", "l1"],
+            "L": ["c0", "c1"],
         }
 
         self.p_d = {"d0": 0.6, "d1": 0.4}
@@ -118,7 +112,7 @@ class MetropolisHastingsStudent(Scene):
             ("i1", "d1"): [0.5, 0.3, 0.2],
         }
         self.p_s = {"i0": [0.95, 0.05], "i1": [0.2, 0.8]}
-        self.p_l = {"g1": [0.1, 0.9], "g2": [0.4, 0.6], "g3": [0.99, 0.01]}
+        self.p_l = {"n1": [0.1, 0.9], "n2": [0.4, 0.6], "n3": [0.99, 0.01]}
 
         self.markov_blankets = {
             "D": ["I", "G"],
@@ -249,9 +243,9 @@ class MetropolisHastingsStudent(Scene):
             self.cpt_links = VGroup()
 
     def build_calc_steps(self, step, node, old_val, new_val, p_x, p_xp, alpha, u, accepted):
-        decision = "ACCEPT" if accepted else "REJECT"
+        decision = "ACEPTA" if accepted else "RECHAZA"
         return [
-            f"Paso {step}: Propose {self.node_label(node)}: "
+            f"Paso {step}: Propone {self.node_label(node)}: "
             f"{self.fmt_state(old_val)} -> {self.fmt_state(new_val)}",
             f"P(x) = {p_x:.8f}",
             f"P(x') = {p_xp:.8f}",
@@ -345,9 +339,9 @@ class MetropolisHastingsStudent(Scene):
             (
                 self.cond_label("L", ["G"]),
                 [
-                    f"{self.fmt_state('g1')}: [0.10,0.90]",
-                    f"{self.fmt_state('g2')}: [0.40,0.60]",
-                    f"{self.fmt_state('g3')}: [0.99,0.01]",
+                    f"{self.fmt_state('n1')}: [0.10,0.90]",
+                    f"{self.fmt_state('n2')}: [0.40,0.60]",
+                    f"{self.fmt_state('n3')}: [0.99,0.01]",
                 ],
             ),
         ]
