@@ -2,13 +2,22 @@ from manim import *
 
 class ComparacionMuestreo(Scene):
     SUBSCRIPT_MAP = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+    NODE_LABELS = {
+        "D": "Dificultad",
+        "I": "Inteligencia",
+        "G": "Nota",
+        "S": "Saber",
+        "L": "Carta",
+    }
 
     def construct(self):
         self.setup_model()
         self.rng = __import__("random").Random(7)
 
         query_text = Text(
-            f"Consulta: P(I={self.fmt_state('i1')} | S={self.fmt_state('s1')}, L={self.fmt_state('l0')})",
+            f"Consulta: P({self.node_label('I')}={self.fmt_state('i1')} | "
+            f"{self.node_label('S')}={self.fmt_state('s1')}, "
+            f"{self.node_label('L')}={self.fmt_state('l0')})",
             font_size=26,
         )
         query_text.to_edge(UP)
@@ -215,3 +224,6 @@ class ComparacionMuestreo(Scene):
         if len(token) >= 2 and token[0].isalpha() and token[1:].isdigit():
             return token[0] + token[1:].translate(self.SUBSCRIPT_MAP)
         return token
+
+    def node_label(self, node):
+        return self.NODE_LABELS.get(node, node)

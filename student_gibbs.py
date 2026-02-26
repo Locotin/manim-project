@@ -3,6 +3,13 @@ from manim import *
 
 class GibbsStudent(Scene):
     SUBSCRIPT_MAP = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+    NODE_LABELS = {
+        "D": "Dificultad",
+        "I": "Inteligencia",
+        "G": "Nota",
+        "S": "Saber",
+        "L": "Carta",
+    }
 
     def construct(self):
         # State spaces
@@ -81,14 +88,15 @@ class GibbsStudent(Scene):
         title = infer_title
 
         evidence_text = Text(
-            f"Evidencia fija: S={self.fmt_state('s1')}, L={self.fmt_state('l0')}",
+            f"Evidencia fija: {self.node_label('S')}={self.fmt_state('s1')}, "
+            f"{self.node_label('L')}={self.fmt_state('l0')}",
             font_size=20,
             color=GRAY_A,
         )
         self.state_text = Text(self.state_to_string(state), font_size=22)
         evidence_panel = VGroup(evidence_text, self.state_text)
         evidence_panel.arrange(DOWN, aligned_edge=LEFT, buff=0.1)
-        evidence_panel.move_to(LEFT * 4.25 + DOWN * 2.75)
+        evidence_panel.to_corner(DL, buff=0.6)
         self.play(FadeIn(evidence_panel, shift=UP * 0.08), run_time=0.45)
 
         calc_line = None
@@ -138,11 +146,14 @@ class GibbsStudent(Scene):
             circle.set_fill(self.node_colors[node], opacity=0.22)
             circle.move_to(pos)
 
-            var_text = Text(node, font_size=28, weight=BOLD)
-            var_text.move_to(pos + UP * 0.12)
+            var_text = Text(self.node_label(node), font_size=18, weight=BOLD)
+            if node == "L":
+                var_text.next_to(circle, DOWN, buff=0.08)
+            else:
+                var_text.next_to(circle, UP, buff=0.08)
 
             value_text = Text(self.fmt_state(state[node]), font_size=22)
-            value_text.move_to(pos + DOWN * 0.18)
+            value_text.move_to(circle.get_center())
 
             self.node_circles[node] = circle
             self.node_value_texts[node] = value_text
@@ -150,7 +161,7 @@ class GibbsStudent(Scene):
             group.add(circle, var_text, value_text)
             if node in self.evidence_nodes:
                 observed = Text("obs", font_size=14, color=GRAY_A)
-                observed.next_to(circle, UP, buff=0.03)
+                observed.next_to(circle, UP + RIGHT, buff=0.03)
                 group.add(observed)
 
         # Directed edges
@@ -208,8 +219,8 @@ class GibbsStudent(Scene):
         unnorm = []
 
         if node == "D":
-            query = "P(D | I, G)"
-            factors = "P(D) * P(G | I, D)"
+            query = f"{self.cond_label('D', ['I','G'])}"
+            factors = f"{self.prob_label('D')} * {self.cond_label('G', ['I','D'])}"
             i_val = state["I"]
             g_val = state["G"]
             for d_val in candidate_states:
@@ -220,8 +231,8 @@ class GibbsStudent(Scene):
                 unnorm.append(u)
 
         elif node == "I":
-            query = "P(I | D, G, S)"
-            factors = "P(I) * P(G | I, D) * P(S | I)"
+            query = f"{self.cond_label('I', ['D','G','S'])}"
+            factors = f"{self.prob_label('I')} * {self.cond_label('G', ['I','D'])} * {self.cond_label('S', ['I'])}"
             d_val = state["D"]
             g_val = state["G"]
             s_val = state["S"]
@@ -236,8 +247,8 @@ class GibbsStudent(Scene):
                 unnorm.append(u)
 
         elif node == "G":
-            query = "P(G | D, I, L)"
-            factors = "P(G | I, D) * P(L | G)"
+            query = f"{self.cond_label('G', ['D','I','L'])}"
+            factors = f"{self.cond_label('G', ['I','D'])} * {self.cond_label('L', ['G'])}"
             d_val = state["D"]
             i_val = state["I"]
             l_val = state["L"]
@@ -250,8 +261,8 @@ class GibbsStudent(Scene):
                 unnorm.append(u)
 
         elif node == "S":
-            query = "P(S | I)"
-            factors = "P(S | I)"
+            query = f"{self.cond_label('S', ['I'])}"
+            factors = f"{self.cond_label('S', ['I'])}"
             i_val = state["I"]
             for s_val in candidate_states:
                 u = self.p_s[i_val][self.states["S"].index(s_val)]
@@ -259,8 +270,8 @@ class GibbsStudent(Scene):
                 unnorm.append(u)
 
         else:  # node == "L"
-            query = "P(L | G)"
-            factors = "P(L | G)"
+            query = f"{self.cond_label('L', ['G'])}"
+            factors = f"{self.cond_label('L', ['G'])}"
             g_val = state["G"]
             for l_val in candidate_states:
                 u = self.p_l[g_val][self.states["L"].index(l_val)]
@@ -290,9 +301,11 @@ class GibbsStudent(Scene):
 
     def build_calc_steps(self, step, cond, old_state):
         update_msg = (
-            f"Actualizacion: {cond['node']} {self.fmt_state(old_state)} -> {self.fmt_state(cond['chosen'])}"
+            f"Actualizacion: {self.node_label(cond['node'])} "
+            f"{self.fmt_state(old_state)} -> {self.fmt_state(cond['chosen'])}"
             if cond["chosen"] != old_state
-            else f"Actualizacion: {cond['node']} sin cambio ({self.fmt_state(cond['chosen'])})"
+            else f"Actualizacion: {self.node_label(cond['node'])} sin cambio "
+                 f"({self.fmt_state(cond['chosen'])})"
         )
         steps = [
             f"Paso {step}: {cond['query']}",
@@ -306,8 +319,8 @@ class GibbsStudent(Scene):
 
     def make_calc_text(self, text):
         calc_text = Text(text, font_size=26)
-        calc_text.to_edge(DOWN, buff=0.38).shift(LEFT * 2.2)
-        max_width = 8.6
+        calc_text.to_edge(DOWN, buff=0.25).shift(RIGHT * 1.2)
+        max_width = 7.2
         if calc_text.width > max_width:
             calc_text.scale_to_fit_width(max_width)
         return calc_text
@@ -336,12 +349,12 @@ class GibbsStudent(Scene):
         changed = new_state != old_state
         msg = (
             Text(
-                f"{node}: {self.fmt_state(old_state)} -> {self.fmt_state(new_state)}",
+                f"{self.node_label(node)}: {self.fmt_state(old_state)} -> {self.fmt_state(new_state)}",
                 font_size=18,
                 color=GREEN_C,
             )
             if changed
-            else Text(f"{node}: sin cambio", font_size=18, color=GRAY_A)
+            else Text(f"{self.node_label(node)}: sin cambio", font_size=18, color=GRAY_A)
         )
         msg.next_to(self.node_circles[node], DOWN, buff=0.12)
         self.play(Indicate(self.node_circles[node], color=GREEN_C if changed else GRAY_A), FadeIn(msg), run_time=0.35)
@@ -355,10 +368,10 @@ class GibbsStudent(Scene):
         title = Text("Tablas de probabilidad", font_size=22)
 
         cards_data = [
-            ("P(D)", [f"{self.fmt_state('d0')}: 0.60", f"{self.fmt_state('d1')}: 0.40"]),
-            ("P(I)", [f"{self.fmt_state('i0')}: 0.70", f"{self.fmt_state('i1')}: 0.30"]),
+            (self.prob_label("D"), [f"{self.fmt_state('d0')}: 0.60", f"{self.fmt_state('d1')}: 0.40"]),
+            (self.prob_label("I"), [f"{self.fmt_state('i0')}: 0.70", f"{self.fmt_state('i1')}: 0.30"]),
             (
-                "P(G|I,D)",
+                self.cond_label("G", ["I", "D"]),
                 [
                     f"{self.fmt_state('i0')},{self.fmt_state('d0')}: [0.30, 0.40, 0.30]",
                     f"{self.fmt_state('i0')},{self.fmt_state('d1')}: [0.05, 0.25, 0.70]",
@@ -367,11 +380,11 @@ class GibbsStudent(Scene):
                 ],
             ),
             (
-                "P(S|I)",
+                self.cond_label("S", ["I"]),
                 [f"{self.fmt_state('i0')}: [0.95, 0.05]", f"{self.fmt_state('i1')}: [0.20, 0.80]"],
             ),
             (
-                "P(L|G)",
+                self.cond_label("L", ["G"]),
                 [
                     f"{self.fmt_state('g1')}: [0.10, 0.90]",
                     f"{self.fmt_state('g2')}: [0.40, 0.60]",
@@ -410,9 +423,9 @@ class GibbsStudent(Scene):
 
     def highlight_cpt_tables(self, node):
         tables_by_node = {
-            "D": ["P(D)", "P(G|I,D)"],
-            "I": ["P(I)", "P(G|I,D)", "P(S|I)"],
-            "G": ["P(G|I,D)", "P(L|G)"],
+            "D": [self.prob_label("D"), self.cond_label("G", ["I", "D"])],
+            "I": [self.prob_label("I"), self.cond_label("G", ["I", "D"]), self.cond_label("S", ["I"])],
+            "G": [self.cond_label("G", ["I", "D"]), self.cond_label("L", ["G"])],
         }
         active_tables = tables_by_node[node]
 
@@ -449,15 +462,27 @@ class GibbsStudent(Scene):
 
     def state_to_string(self, state):
         return (
-            f"D={self.fmt_state(state['D'])}, I={self.fmt_state(state['I'])}, "
-            f"G={self.fmt_state(state['G'])}, S={self.fmt_state(state['S'])}, "
-            f"L={self.fmt_state(state['L'])}"
+            f"{self.node_label('D')}={self.fmt_state(state['D'])}, "
+            f"{self.node_label('I')}={self.fmt_state(state['I'])}, "
+            f"{self.node_label('G')}={self.fmt_state(state['G'])}, "
+            f"{self.node_label('S')}={self.fmt_state(state['S'])}, "
+            f"{self.node_label('L')}={self.fmt_state(state['L'])}"
         )
 
     def fmt_state(self, token):
         if len(token) >= 2 and token[0].isalpha() and token[1:].isdigit():
             return token[0] + token[1:].translate(self.SUBSCRIPT_MAP)
         return token
+
+    def node_label(self, node):
+        return self.NODE_LABELS.get(node, node)
+
+    def prob_label(self, node):
+        return f"P({self.node_label(node)})"
+
+    def cond_label(self, node, parents):
+        parents_str = ",".join(self.node_label(p) for p in parents)
+        return f"P({self.node_label(node)}|{parents_str})"
 
 
 class MarkovBlanketStudent(GibbsStudent):
@@ -511,8 +536,8 @@ class MarkovBlanketStudent(GibbsStudent):
                 self.play(ReplacementTransform(blanket_outline, new_outline), run_time=0.35)
             blanket_outline = new_outline
 
-            mb_set = ", ".join(self.markov_blankets[node])
-            new_text = Text(f"MB({node}) = {{{mb_set}}}", font_size=30, color=YELLOW)
+            mb_set = ", ".join(self.node_label(n) for n in self.markov_blankets[node])
+            new_text = Text(f"MB({self.node_label(node)}) = {{{mb_set}}}", font_size=30, color=YELLOW)
             new_text.move_to(mb_text)
             self.play(ReplacementTransform(mb_text, new_text), run_time=0.4)
             mb_text = new_text
@@ -531,8 +556,8 @@ class MarkovBlanketStudent(GibbsStudent):
                 ring,
                 num_dashes=24,
                 dashed_ratio=0.6,
-                color=BLUE_D,
+                color=BLUE,
             )
-            dashed_ring.set_stroke(width=3.2)
+            dashed_ring.set_stroke(color=BLUE, width=3.2)
             outlines.add(dashed_ring)
         return outlines

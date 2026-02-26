@@ -4,6 +4,13 @@ import random
 
 class RejectionStudent(Scene):
     SUBSCRIPT_MAP = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+    NODE_LABELS = {
+        "D": "Dificultad",
+        "I": "Inteligencia",
+        "G": "Nota",
+        "S": "Saber",
+        "L": "Carta",
+    }
 
     def construct(self):
         self.rng = random.Random(11)
@@ -18,8 +25,9 @@ class RejectionStudent(Scene):
         query_target = ("I", "i1")
 
         subtitle = Text(
-            f"Evidencia: S={self.fmt_state('s1')}, L={self.fmt_state('l0')}  |  "
-            f"Consulta: P(I={self.fmt_state('i1')} | evidencia)",
+            f"Evidencia: {self.node_label('S')}={self.fmt_state('s1')}, "
+            f"{self.node_label('L')}={self.fmt_state('l0')}  |  "
+            f"Consulta: P({self.node_label('I')}={self.fmt_state('i1')} | evidencia)",
             font_size=22,
             color=GRAY_A,
         )
@@ -58,19 +66,21 @@ class RejectionStudent(Scene):
                 est = hits / accepted if accepted > 0 else 0.0
                 msg = (
                     f"Muestra {k}: ACEPTADA  "
-                    f"(S={self.fmt_state(sample['S'])}, L={self.fmt_state(sample['L'])})"
+                    f"({self.node_label('S')}={self.fmt_state(sample['S'])}, "
+                    f"{self.node_label('L')}={self.fmt_state(sample['L'])})"
                 )
                 if is_hit:
-                    msg += f"  y I={self.fmt_state('i1')}"
+                    msg += f"  y {self.node_label('I')}={self.fmt_state('i1')}"
                 else:
-                    msg += f"  y I={self.fmt_state(sample['I'])}"
+                    msg += f"  y {self.node_label('I')}={self.fmt_state(sample['I'])}"
                 status_color = GREEN_C
             else:
                 rejected += 1
                 est = hits / accepted if accepted > 0 else 0.0
                 msg = (
                     f"Muestra {k}: RECHAZADA  "
-                    f"(S={self.fmt_state(sample['S'])}, L={self.fmt_state(sample['L'])})"
+                    f"({self.node_label('S')}={self.fmt_state(sample['S'])}, "
+                    f"{self.node_label('L')}={self.fmt_state(sample['L'])})"
                 )
                 status_color = RED_C
 
@@ -84,7 +94,9 @@ class RejectionStudent(Scene):
             self.wait(0.35)
 
         final_text = Text(
-            f"Estimacion final: P(I={self.fmt_state('i1')} | S={self.fmt_state('s1')}, L={self.fmt_state('l0')}) "
+            f"Estimacion final: P({self.node_label('I')}={self.fmt_state('i1')} | "
+            f"{self.node_label('S')}={self.fmt_state('s1')}, "
+            f"{self.node_label('L')}={self.fmt_state('l0')}) "
             f"≈ {hits}/{max(accepted,1)} = {hits / max(accepted,1):.3f}",
             font_size=26,
             color=YELLOW,
@@ -137,8 +149,12 @@ class RejectionStudent(Scene):
             circle.set_fill(self.node_colors[node], opacity=0.22)
             circle.move_to(pos)
 
-            label = Text(node, font_size=28, weight=BOLD).move_to(pos + UP * 0.12)
-            value = Text(self.fmt_state(state[node]), font_size=22).move_to(pos + DOWN * 0.18)
+            label = Text(self.node_label(node), font_size=18, weight=BOLD)
+            if node == "L":
+                label.next_to(circle, DOWN, buff=0.08)
+            else:
+                label.next_to(circle, UP, buff=0.08)
+            value = Text(self.fmt_state(state[node]), font_size=22).move_to(circle.get_center())
 
             self.node_circles[node] = circle
             self.node_values[node] = value
@@ -158,8 +174,8 @@ class RejectionStudent(Scene):
         return group
 
     def highlight_evidence_nodes(self):
-        tag_s = Text("obs", font_size=14, color=GRAY_A).next_to(self.node_circles["S"], UP, buff=0.03)
-        tag_l = Text("obs", font_size=14, color=GRAY_A).next_to(self.node_circles["L"], UP, buff=0.03)
+        tag_s = Text("obs", font_size=14, color=GRAY_A).next_to(self.node_circles["S"], UP + RIGHT, buff=0.03)
+        tag_l = Text("obs", font_size=14, color=GRAY_A).next_to(self.node_circles["L"], UP + RIGHT, buff=0.03)
         self.play(
             self.node_circles["S"].animate.set_stroke(BLUE, width=4),
             self.node_circles["L"].animate.set_stroke(BLUE, width=4),
@@ -171,18 +187,25 @@ class RejectionStudent(Scene):
     def create_counter_panel(self):
         self.acc_text = Text("Aceptadas: 0", font_size=22, color=GREEN_C)
         self.rej_text = Text("Rechazadas: 0", font_size=22, color=RED_C)
-        self.hit_text = Text(f"Hits I={self.fmt_state('i1')}: 0", font_size=22)
+        self.hit_text = Text(
+            f"Hits {self.node_label('I')}={self.fmt_state('i1')}: 0",
+            font_size=22,
+        )
         self.est_text = Text("Estimacion: 0.000", font_size=22, color=YELLOW)
 
         panel = VGroup(self.acc_text, self.rej_text, self.hit_text, self.est_text)
         panel.arrange(DOWN, aligned_edge=LEFT, buff=0.08)
-        panel.to_corner(UR, buff=0.45).shift(DOWN * 0.8)
+        # Lower the stats panel to avoid overlapping the title/evidence line.
+        panel.to_corner(UR, buff=0.45).shift(DOWN * 1.6)
         return panel
 
     def update_counters(self, accepted, rejected, hits, est):
         new_acc = Text(f"Aceptadas: {accepted}", font_size=22, color=GREEN_C).move_to(self.acc_text)
         new_rej = Text(f"Rechazadas: {rejected}", font_size=22, color=RED_C).move_to(self.rej_text)
-        new_hit = Text(f"Hits I={self.fmt_state('i1')}: {hits}", font_size=22).move_to(self.hit_text)
+        new_hit = Text(
+            f"Hits {self.node_label('I')}={self.fmt_state('i1')}: {hits}",
+            font_size=22,
+        ).move_to(self.hit_text)
         new_est = Text(f"Estimacion: {est:.3f}", font_size=22, color=YELLOW).move_to(self.est_text)
 
         self.play(
@@ -238,6 +261,9 @@ class RejectionStudent(Scene):
             return token[0] + token[1:].translate(self.SUBSCRIPT_MAP)
         return token
 
+    def node_label(self, node):
+        return self.NODE_LABELS.get(node, node)
+
 
 class LikelihoodWeightingStudent(RejectionStudent):
     def construct(self):
@@ -249,8 +275,9 @@ class LikelihoodWeightingStudent(RejectionStudent):
         self.play(Write(title), run_time=0.8)
 
         subtitle = Text(
-            f"Evidencia fija: S={self.fmt_state('s1')}, L={self.fmt_state('l0')}  |  "
-            f"Consulta: P(I={self.fmt_state('i1')} | evidencia)",
+            f"Evidencia fija: {self.node_label('S')}={self.fmt_state('s1')}, "
+            f"{self.node_label('L')}={self.fmt_state('l0')}  |  "
+            f"Consulta: P({self.node_label('I')}={self.fmt_state('i1')} | evidencia)",
             font_size=22,
             color=GRAY_A,
         )
@@ -283,8 +310,10 @@ class LikelihoodWeightingStudent(RejectionStudent):
             est = weight_hits / weight_total if weight_total > 0 else 0.0
 
             msg = (
-                f"Muestra {k}: w=P(S={self.fmt_state('s1')}|I={self.fmt_state(sample['I'])})"
-                f"·P(L={self.fmt_state('l0')}|G={self.fmt_state(sample['G'])})={w:.4f}"
+                f"Muestra {k}: w=P({self.node_label('S')}={self.fmt_state('s1')}|"
+                f"{self.node_label('I')}={self.fmt_state(sample['I'])})"
+                f"·P({self.node_label('L')}={self.fmt_state('l0')}|"
+                f"{self.node_label('G')}={self.fmt_state(sample['G'])})={w:.4f}"
             )
             new_info = Text(msg, font_size=22, color=BLUE_C)
             new_info.move_to(info_line)
@@ -308,7 +337,10 @@ class LikelihoodWeightingStudent(RejectionStudent):
     def create_weight_panel(self):
         self.count_text = Text("Muestras: 0", font_size=22)
         self.weight_text = Text("Peso total: 0.000", font_size=22, color=BLUE_C)
-        self.hit_weight_text = Text(f"Peso hits I={self.fmt_state('i1')}: 0.000", font_size=22)
+        self.hit_weight_text = Text(
+            f"Peso hits {self.node_label('I')}={self.fmt_state('i1')}: 0.000",
+            font_size=22,
+        )
         self.est_text = Text("Estimacion: 0.000", font_size=22, color=YELLOW)
         self.last_hit_text = Text("Ultima muestra: --", font_size=22, color=GRAY_A)
 
@@ -327,7 +359,7 @@ class LikelihoodWeightingStudent(RejectionStudent):
         new_count = Text(f"Muestras: {n}", font_size=22).move_to(self.count_text)
         new_weight = Text(f"Peso total: {weight_total:.3f}", font_size=22, color=BLUE_C).move_to(self.weight_text)
         new_hit_weight = Text(
-            f"Peso hits I={self.fmt_state('i1')}: {weight_hits:.3f}",
+            f"Peso hits {self.node_label('I')}={self.fmt_state('i1')}: {weight_hits:.3f}",
             font_size=22,
         ).move_to(self.hit_weight_text)
         new_est = Text(f"Estimacion: {est:.3f}", font_size=22, color=YELLOW).move_to(self.est_text)
